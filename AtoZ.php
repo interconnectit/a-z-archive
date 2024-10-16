@@ -32,7 +32,6 @@ class AtoZ {
     public function __construct() {
         add_filter( 'pre_get_posts', [ $this, 'set_query_var' ], 8, 1 );
         add_filter( 'posts_where', [ $this, 'filter' ], 100, 2 );
-        add_filter( 'posts_orderby', [ $this, 'change_order' ], 10, 2 );
         add_filter( 'query_vars', [ $this, 'add_alpha_var' ] );
     }
 
@@ -71,32 +70,20 @@ class AtoZ {
         }
 
         // We're going to sort alphabetically
-        $query->set( 'alpha_sort', true );
+        $query->set( 'orderby', 'title' );
+        $query->set( 'order', 'ASC' );
 
         // Check if we're going to filter to a single letter. e.g. alpha=a
         if ( isset( $query->query_vars['alpha_filter'] ) ) {
-            $alpha = strtolower( $query->get( 'alpha_filter' ) );
+            $alpha = strtolower( esc_sql( $query->get( 'alpha_filter' ) ) );
             $alpha = $alpha === 'sym' || preg_match( '/^[^a-z]$/', substr( $alpha, 0, 1 ) ) ?
                 'sym' : substr( $alpha, 0, 1 );
 
             $query->set( 'alpha_filter', $alpha );
-        }
-    }
 
-    /**
-     * Change the sort order to order by post_title.
-     *
-     * @param string   $order_by
-     * @param WP_Query $wp_query
-     *
-     * @return string
-     */
-    public function change_order( string $order_by, WP_Query $wp_query ): string {
-        if ( !empty( $wp_query->query_vars['alpha_sort'] ) ) {
-            $order_by = 'wp_posts.post_title ASC, wp_posts.menu_order ASC, wp_posts.ID ';
+            // Disable ElasticPress integration for this query
+            $query->set( 'ep_integrate', false );
         }
-
-        return $order_by;
     }
 
     /**
@@ -108,10 +95,9 @@ class AtoZ {
     public function filter( string $where, WP_Query $wp_query ): string {
         global $wpdb;
 
-        $sort = $wp_query->get( 'alpha_sort' );
         $filter = $wp_query->get( 'alpha_filter' );
 
-        if ( empty( $sort ) || empty( $filter ) ) {
+        if ( empty( $filter ) ) {
             return $where;
         }
 
