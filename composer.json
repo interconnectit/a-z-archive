@@ -1,0 +1,16 @@
+{
+  "name": "interconnectit/plugin-a-z-archive",
+  "type": "wordpress-plugin",
+  "homepage": "https://github.com/interconnectit/a-z-archive",
+  "authors": [
+    {
+      "name": "interconnect/it",
+      "email": "support@interconnectit.com",
+      "homepage": "https://interconnectit.com/"
+    }
+  ],
+  "require": {
+    "php": ">=8.1",
+    "composer/installers": "^2.0"
+  }
+}
