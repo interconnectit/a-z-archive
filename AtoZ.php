@@ -47,11 +47,16 @@ class AtoZ {
     }
 
     /**
-     * @param string $post_type
+     * @param string|string[] $post_type
      *
      * @return bool
      */
-    protected function post_type_supports( string $post_type ): bool {
+    protected function post_type_supports( string|array $post_type ): bool {
+        if ( is_array( $post_type ) ) {
+            // Return true if all post types support alpha_sort
+            return count( array_filter( $post_type, [ $this, 'post_type_supports' ] ) ) === count( $post_type );
+        }
+
         return post_type_supports( $post_type, self::SUPPORT );
     }
 
@@ -61,11 +66,11 @@ class AtoZ {
      * @param WP_Query $query
      */
     public function set_query_var( WP_Query $query ): void {
-        if ( !$query->is_main_query() || $query->is_search() || is_admin() ) {
+        if ( !$query->is_main_query() || $query->is_search() ) {
             return;
         }
 
-        if ( empty( $query->query_vars['post_type'] ) || is_array( $query->query_vars['post_type'] ) || !$this->post_type_supports( $query->query_vars['post_type'] ) ) {
+        if ( empty( $query->query_vars['post_type'] ) || !$this->post_type_supports( $query->query_vars['post_type'] ) ) {
             return;
         }
 
@@ -75,9 +80,9 @@ class AtoZ {
 
         // Check if we're going to filter to a single letter. e.g. alpha=a
         if ( isset( $query->query_vars['alpha_filter'] ) ) {
-            $alpha = strtolower( esc_sql( $query->get( 'alpha_filter' ) ) );
-            $alpha = $alpha === 'sym' || preg_match( '/^[^a-z]$/', substr( $alpha, 0, 1 ) ) ?
-                'sym' : substr( $alpha, 0, 1 );
+            $alpha = strtolower( esc_sql( substr( $query->get( 'alpha_filter' ), 0, 1 ) ) );
+            $alpha = $alpha === '9' || preg_match( '/^[^a-z]$/', $alpha ) ?
+                '9' : substr( $alpha, 0, 1 );
 
             $query->set( 'alpha_filter', $alpha );
 
@@ -103,7 +108,7 @@ class AtoZ {
 
         $where_add = '';
 
-        if ( $filter === 'sym' ) {
+        if ( $filter === '9' ) {
             $where_add = " AND LOWER( SUBSTRING( $wpdb->posts.post_title, 1, 1 ) ) NOT IN ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') ";
         }
         elseif ( preg_match( '/^[a-z]$/', $filter ) ) {
@@ -131,7 +136,7 @@ class AtoZ {
         $links = [];
         $links['current'] = get_query_var( 'alpha_filter' );
         $links['all'] = $root;
-        $links['#'] = add_query_arg( [ 'alpha_filter' => 'sym' ], $root );
+        $links['#'] = add_query_arg( [ 'alpha_filter' => '9' ], $root );
         foreach ( range( 'a', 'z' ) as $alpha ) {
             $links[$alpha] = add_query_arg( [ 'alpha_filter' => $alpha ], $root );
         }
@@ -171,7 +176,7 @@ class AtoZ {
         foreach ( $filters as $title => $link ) {
             $is_current = match ( $title ) {
                 '', 'all' => empty( $current ),
-                '#'       => $current === 'sym',
+                '#'       => $current === '9',
                 default   => $current === $title,
             };
 
