@@ -1,0 +1,16 @@
+{
+  "name": "plugin-a-z-archive",
+  "version": "1.0.0",
+  "description": "WordPress Plugins",
+  "repository": {
+    "type": "github",
+    "url": "https://github.com/interconnectit/a-z-archive"
+  },
+  "main": "AtoZ.php",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Interconnect/IT",
+  "license": "GPL-2.0",
+  "devDependencies": { }
+}
