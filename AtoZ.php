@@ -26,10 +26,11 @@ class AtoZ {
      */
     protected static ?self $instance = null;
 
-    protected const DOM = 'icit';
+    protected const DOM     = 'icit';
+    protected const SUPPORT = 'alpha_sort';
 
     public function __construct() {
-        add_filter( 'pre_get_posts', [ $this, 'check_for_support' ], 8, 1 );
+        add_filter( 'pre_get_posts', [ $this, 'set_query_var' ], 8, 1 );
         add_filter( 'posts_where', [ $this, 'filter' ], 100, 2 );
         add_filter( 'posts_orderby', [ $this, 'change_order' ], 10, 2 );
         add_filter( 'query_vars', [ $this, 'add_alpha_var' ] );
@@ -47,16 +48,25 @@ class AtoZ {
     }
 
     /**
+     * @param string $post_type
+     *
+     * @return bool
+     */
+    protected function post_type_supports( string $post_type ): bool {
+        return post_type_supports( $post_type, self::SUPPORT );
+    }
+
+    /**
      * If the post_type supports alpha_sort we'll flag that in the query.
      *
      * @param WP_Query $query
      */
-    public function check_for_support( WP_Query $query ): void {
+    public function set_query_var( WP_Query $query ): void {
         if ( !$query->is_main_query() || $query->is_search() || is_admin() ) {
             return;
         }
 
-        if ( empty( $query->query_vars['post_type'] ) || is_array( $query->query_vars['post_type'] ) || !post_type_supports( $query->query_vars['post_type'], 'alpha_sort' ) ) {
+        if ( empty( $query->query_vars['post_type'] ) || is_array( $query->query_vars['post_type'] ) || !$this->post_type_supports( $query->query_vars['post_type'] ) ) {
             return;
         }
 
@@ -65,13 +75,10 @@ class AtoZ {
 
         // Check if we're going to filter to a single letter. e.g. alpha=a
         if ( isset( $query->query_vars['alpha_filter'] ) ) {
-            $alpha = $query->get( 'alpha_filter' );
-            if ( strtolower( $alpha ) === 'sym' || preg_match( '/^[^a-z]$/', substr( strtolower( $alpha ), 0, 1 ) ) ) {
-                $alpha = 'sym';
-            }
-            else {
-                $alpha = strtolower( substr( $alpha, 0, 1 ) );
-            }
+            $alpha = strtolower( $query->get( 'alpha_filter' ) );
+            $alpha = $alpha === 'sym' || preg_match( '/^[^a-z]$/', substr( $alpha, 0, 1 ) ) ?
+                'sym' : substr( $alpha, 0, 1 );
+
             $query->set( 'alpha_filter', $alpha );
         }
     }
@@ -126,9 +133,8 @@ class AtoZ {
      * @return array|null
      */
     public static function get_post_type_alpha_filters( string $post_type ): ?array {
-
         // Unsupported post type
-        if ( !post_type_supports( $post_type, 'alpha_sort' ) ) {
+        if ( !self::instance()->post_type_supports( $post_type ) ) {
             return null;
         }
 
@@ -153,6 +159,7 @@ class AtoZ {
      *
      * @return string|null
      * @noinspection PhpUnused
+     * @noinspection HtmlUnknownTarget
      */
     public static function post_type_alpha_filters( string $post_type, array $args = [] ): ?string {
         $filters = self::get_post_type_alpha_filters( $post_type );
@@ -176,24 +183,14 @@ class AtoZ {
         }
 
         foreach ( $filters as $title => $link ) {
-            switch ( $title ) {
-                case '':
-                case 'all':
-                    $title = $args['all_title'];
-                    $is_current = empty( $current );
-                    break;
-
-                case '#':
-                    $is_current = $current === 'sym';
-                    break;
-
-                default:
-                    $is_current = $title === $current;
-                    break;
-            }
+            $is_current = match ( $title ) {
+                '', 'all' => empty( $current ),
+                '#'       => $current === 'sym',
+                default   => $current === $title,
+            };
 
             $output .= sprintf( '<li%3$s><a href="%2$s">%1$s</a></li>',
-                esc_html( $title ),
+                esc_html( empty( $current ) ? $args['all_title'] : $title ),
                 esc_attr( $link ),
                 $is_current ? ' class="current-item"' : ''
             );
