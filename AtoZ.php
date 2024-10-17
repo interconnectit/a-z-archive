@@ -33,6 +33,9 @@ class AtoZ {
         add_filter( 'pre_get_posts', [ $this, 'set_query_var' ], 8, 1 );
         add_filter( 'posts_where', [ $this, 'filter' ], 100, 2 );
         add_filter( 'query_vars', [ $this, 'add_alpha_var' ] );
+
+        add_filter( 'disable_months_dropdown', [ $this, 'disable_months_dropdown' ], 10, 2 );
+        add_action( 'restrict_manage_posts', [ $this, 'restrict_manage_posts' ], 10, 2 );
     }
 
     /**
@@ -44,6 +47,42 @@ class AtoZ {
         $vars[] = 'alpha_filter';
 
         return $vars;
+    }
+
+    /**
+     * @param bool   $disable
+     * @param string $post_type
+     *
+     * @return bool
+     */
+    public function disable_months_dropdown( bool $disable, string $post_type ): bool {
+        if ( $this->post_type_supports( $post_type ) ) {
+            return true;
+        }
+
+        return $disable;
+    }
+
+    /**
+     * @param string $post_type
+     *
+     * @return void
+     */
+    public function restrict_manage_posts( string $post_type ): void {
+        if ( !$this->post_type_supports( $post_type ) ) {
+            return;
+        }
+
+        $current = get_query_var( 'alpha_filter' ) ? : false;
+
+        echo '<label class="screen-reader-text" for="filter-by-alpha">' . __( 'Filter by initial letter', self::DOM ) . '</label>';
+        echo '<select name="alpha_filter" id="filter-by-alpha">';
+        echo '<option value="">' . esc_html( __( 'All', self::DOM ) ) . '</option>';
+        echo '<option value="9"' . selected( $current, '9', false ) . '>' . esc_html( __( '#', self::DOM ) ) . '</option>';
+        foreach ( range( 'a', 'z' ) as $alpha ) {
+            echo '<option value="' . esc_attr( $alpha ) . '"' . selected( $current, $alpha, false ) . '>' . strtoupper( esc_html( $alpha ) ) . '</option>';
+        }
+        echo '</select>';
     }
 
     /**
