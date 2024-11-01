@@ -3,7 +3,7 @@
 Plugin Name: A-Z Archive - Alphabetic sort and filtering
 Plugin URI: http://interconnectit.com
 Description: Adds the option to change the sort order of a post type to alphabetic along with the option of filtering posts to initial letter. Just add add_post_type_support({post_type}, 'alpha_sort' );
-Version: 1.0
+Version: 1.0.1
 Author: James Whitehead
 Author URI: http://interconnectit.com
 License: GPL2
@@ -113,10 +113,6 @@ class AtoZ {
             return;
         }
 
-        // We're going to sort alphabetically
-        $query->set( 'orderby', 'title' );
-        $query->set( 'order', 'ASC' );
-
         // Check if we're going to filter to a single letter. e.g. alpha=a
         if ( isset( $query->query_vars['alpha_filter'] ) ) {
             $alpha = strtolower( esc_sql( substr( $query->get( 'alpha_filter' ), 0, 1 ) ) );
@@ -128,6 +124,15 @@ class AtoZ {
             // Disable ElasticPress integration for this query
             $query->set( 'ep_integrate', false );
         }
+
+        if ( is_admin() && !empty( $query->get( 'orderby' ) ) ) {
+            return;
+        }
+
+        // We're going to sort alphabetically
+        $query->set( 'orderby', 'title' );
+        $query->set( 'order', 'ASC' );
+
     }
 
     /**
