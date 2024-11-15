@@ -26,13 +26,15 @@ class AtoZ {
      */
     protected static ?self $instance = null;
 
-    protected const DOM     = 'icit';
-    protected const SUPPORT = 'alpha_sort';
+    protected const DOM       = 'icit';
+    protected const SUPPORT   = 'alpha_sort';
+    protected const QUERY_VAR = 'alpha_filter';
 
     public function __construct() {
         add_filter( 'pre_get_posts', [ $this, 'set_query_var' ], 8, 1 );
         add_filter( 'posts_where', [ $this, 'filter' ], 100, 2 );
         add_filter( 'query_vars', [ $this, 'add_alpha_var' ] );
+//        add_filter( 'post_rewrite_rules', [ $this, 'rewrite_rules' ], 1 );
 
         add_filter( 'disable_months_dropdown', [ $this, 'disable_months_dropdown' ], 10, 2 );
         add_action( 'restrict_manage_posts', [ $this, 'restrict_manage_posts' ], 10, 2 );
@@ -44,7 +46,7 @@ class AtoZ {
      * @return array
      */
     public function add_alpha_var( array $vars ): array {
-        $vars[] = 'alpha_filter';
+        $vars[] = self::QUERY_VAR;
 
         return $vars;
     }
@@ -73,10 +75,10 @@ class AtoZ {
             return;
         }
 
-        $current = get_query_var( 'alpha_filter' ) ? : false;
+        $current = get_query_var( self::QUERY_VAR ) ? : false;
 
         echo '<label class="screen-reader-text" for="filter-by-alpha">' . __( 'Filter by initial letter', self::DOM ) . '</label>';
-        echo '<select name="alpha_filter" id="filter-by-alpha">';
+        echo '<select name="' . self::QUERY_VAR . '" id="filter-by-alpha">';
         echo '<option value="">' . esc_html( __( 'All', self::DOM ) ) . '</option>';
         echo '<option value="9"' . selected( $current, '9', false ) . '>' . esc_html( __( '#', self::DOM ) ) . '</option>';
         foreach ( range( 'a', 'z' ) as $alpha ) {
@@ -116,12 +118,12 @@ class AtoZ {
         }
 
         // Check if we're going to filter to a single letter. e.g. alpha=a
-        if ( isset( $query->query_vars['alpha_filter'] ) ) {
-            $alpha = strtolower( esc_sql( substr( $query->get( 'alpha_filter' ), 0, 1 ) ) );
+        if ( isset( $query->query_vars[self::QUERY_VAR] ) ) {
+            $alpha = strtolower( esc_sql( substr( $query->get( self::QUERY_VAR ), 0, 1 ) ) );
             $alpha = $alpha === '9' || preg_match( '/^[^a-z]$/', $alpha ) ?
                 '9' : substr( $alpha, 0, 1 );
 
-            $query->set( 'alpha_filter', $alpha );
+            $query->set( self::QUERY_VAR, $alpha );
 
             // Disable ElasticPress integration for this query
             $query->set( 'ep_integrate', false );
@@ -147,7 +149,7 @@ class AtoZ {
     public function filter( string $where, WP_Query $wp_query ): string {
         global $wpdb;
 
-        $filter = $wp_query->get( 'alpha_filter' );
+        $filter = $wp_query->get( self::QUERY_VAR );
 
         if ( empty( $filter ) || !$this->post_type_supports( $wp_query->get( 'post_type' ) ) ) {
             return $where;
@@ -181,14 +183,46 @@ class AtoZ {
 
         // Build an array of links to each filter
         $links = [];
-        $links['current'] = get_query_var( 'alpha_filter' );
+        $links['current'] = get_query_var( self::QUERY_VAR );
         $links['all'] = $root;
-        $links['#'] = add_query_arg( [ 'alpha_filter' => '9' ], $root );
+        $links['#'] = add_query_arg( [ self::QUERY_VAR => '9' ], $root );
         foreach ( range( 'a', 'z' ) as $alpha ) {
-            $links[$alpha] = add_query_arg( [ 'alpha_filter' => $alpha ], $root );
+            $links[$alpha] = add_query_arg( [ self::QUERY_VAR => $alpha ], $root );
         }
 
         return $links;
+    }
+
+    /**
+     * @param string[] $post_rewrite
+     *
+     * @return string[]
+     */
+    public function rewrite_rules( array $post_rewrite = [] ): array {
+        add_rewrite_tag( '%' . self::QUERY_VAR . '%', '([^&]+)', self::QUERY_VAR . '=' );
+
+        foreach ( get_post_types( [ 'public' => true ] ) as $post_type ) {
+            if ( !post_type_supports( $post_type, self::SUPPORT ) ) {
+                continue;
+            }
+
+            // Get the post_type object
+            $post_type = get_post_type_object( $post_type );
+
+            // Do we support rewrites?
+            if ( empty( $post_type->rewrite ) || empty( $post_type->has_archive ) ) {
+                continue;
+            }
+
+            $slug = $post_type->has_archive === true ? $post_type->name : $post_type->has_archive;
+            add_permastruct(
+                $slug . '_' . self::QUERY_VAR,
+                '/' . $slug . '/alpha/%' . self::QUERY_VAR . '%',
+                false
+            );
+        }
+
+        return $post_rewrite;
     }
 
     /**
@@ -221,7 +255,6 @@ class AtoZ {
         }
 
         foreach ( $filters as $title => $link ) {
-            var_dump( $current );
             $is_current = match ( $title ) {
                 '', 'all' => false,
                 '#'       => $current === '9',
