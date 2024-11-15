@@ -103,14 +103,16 @@ class AtoZ {
      * If the post_type supports alpha_sort we'll flag that in the query.
      *
      * @param WP_Query $query
+     *
+     * @return WP_Query
      */
-    public function set_query_var( WP_Query $query ): void {
+    public function set_query_var( WP_Query $query ): WP_Query {
         if ( !$query->is_main_query() || $query->is_search() ) {
-            return;
+            return $query;
         }
 
-        if ( empty( $query->query_vars['post_type'] ) || !$this->post_type_supports( $query->query_vars['post_type'] ) ) {
-            return;
+        if ( empty( $query->query_vars['post_type'] ) || is_array( $query->query_vars['post_type'] ) || !$this->post_type_supports( $query->query_vars['post_type'] ) ) {
+            return $query;
         }
 
         // Check if we're going to filter to a single letter. e.g. alpha=a
@@ -126,13 +128,14 @@ class AtoZ {
         }
 
         if ( is_admin() && !empty( $query->get( 'orderby' ) ) ) {
-            return;
+            return $query;
         }
 
         // We're going to sort alphabetically
         $query->set( 'orderby', 'title' );
         $query->set( 'order', 'ASC' );
 
+        return $query;
     }
 
     /**
@@ -146,7 +149,7 @@ class AtoZ {
 
         $filter = $wp_query->get( 'alpha_filter' );
 
-        if ( empty( $filter ) ) {
+        if ( empty( $filter ) || !$this->post_type_supports( $wp_query->get( 'post_type' ) ) ) {
             return $where;
         }
 
@@ -218,14 +221,15 @@ class AtoZ {
         }
 
         foreach ( $filters as $title => $link ) {
+            var_dump( $current );
             $is_current = match ( $title ) {
-                '', 'all' => empty( $current ),
+                '', 'all' => false,
                 '#'       => $current === '9',
                 default   => $current === $title,
             };
 
             $output .= sprintf( '<li%3$s><a href="%2$s">%1$s</a></li>',
-                esc_html( empty( $current ) ? $args['all_title'] : $title ),
+                esc_html( $title ),
                 esc_attr( $link ),
                 $is_current ? ' class="current-item"' : ''
             );
