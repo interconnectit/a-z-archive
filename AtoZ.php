@@ -34,7 +34,7 @@ class AtoZ {
         add_filter( 'pre_get_posts', [ $this, 'set_query_var' ], 8, 1 );
         add_filter( 'posts_where', [ $this, 'filter' ], 100, 2 );
         add_filter( 'query_vars', [ $this, 'add_alpha_var' ] );
-//        add_filter( 'post_rewrite_rules', [ $this, 'rewrite_rules' ], 1 );
+        //        add_filter( 'post_rewrite_rules', [ $this, 'rewrite_rules' ], 1 );
 
         add_filter( 'disable_months_dropdown', [ $this, 'disable_months_dropdown' ], 10, 2 );
         add_action( 'restrict_manage_posts', [ $this, 'restrict_manage_posts' ], 10, 2 );
@@ -242,6 +242,7 @@ class AtoZ {
         $defaults = [
             'title'     => __( '', self::DOM ),
             'all_title' => __( 'All', self::DOM ),
+            'class'     => 'alpha-filter'
         ];
         $args = wp_parse_args( $args, $defaults );
 
@@ -249,7 +250,7 @@ class AtoZ {
         $current = !empty( $filters['current'] ) ? $filters['current'] : false;
         unset( $filters['current'] );
 
-        $output = '<ul class="alpha-filter">';
+        $output = '<ul class="' . esc_attr( $args['class'] ) . '" data-post-type="' . esc_attr( $post_type ) . '" id="' . uniqid( 'alpha-filter-' ) . '">';
         if ( !empty( $args['title'] ) ) {
             $output .= sprintf( '<li class="title">%s</li>', esc_html( $args['title'] ) );
         }
