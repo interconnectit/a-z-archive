@@ -183,11 +183,24 @@ class AtoZ {
 
         // Build an array of links to each filter
         $links = [];
-        $links['current'] = get_query_var( self::QUERY_VAR );
-        $links['all'] = $root;
-        $links['#'] = add_query_arg( [ self::QUERY_VAR => '9' ], $root );
+        $links['all'] = [
+            'url'        => $root,
+            'query'      => '',
+            'is_current' => empty( get_query_var( self::QUERY_VAR ) )
+        ];
+
+        $links['#'] = [
+            'url'        => add_query_arg( [ self::QUERY_VAR => '9' ], $root ),
+            'query'      => '9',
+            'is_current' => get_query_var( self::QUERY_VAR ) === '9'
+        ];
+
         foreach ( range( 'a', 'z' ) as $alpha ) {
-            $links[$alpha] = add_query_arg( [ self::QUERY_VAR => $alpha ], $root );
+            $links[$alpha] = [
+                'url'        => add_query_arg( [ self::QUERY_VAR => $alpha ], $root ),
+                'query'      => $alpha,
+                'is_current' => get_query_var( self::QUERY_VAR ) === $alpha
+            ];
         }
 
         return $links;
@@ -255,17 +268,12 @@ class AtoZ {
             $output .= sprintf( '<li class="title">%s</li>', esc_html( $args['title'] ) );
         }
 
-        foreach ( $filters as $title => $link ) {
-            $is_current = match ( $title ) {
-                '', 'all' => false,
-                '#'       => $current === '9',
-                default   => $current === $title,
-            };
-
-            $output .= sprintf( '<li%3$s><a href="%2$s">%1$s</a></li>',
+        foreach ( $filters as $title => $data ) {
+            $output .= sprintf( '<li%3$s data-query="%4$s"><a href="%2$s">%1$s</a></li>',
                 esc_html( $title ),
-                esc_attr( $link ),
-                $is_current ? ' class="current-item"' : ''
+                esc_attr( $data['url'] ),
+                $data['is_current'] ? ' class="current-item"' : '',
+                esc_attr( $data['query'] ),
             );
         }
         $output .= '</ul>';
